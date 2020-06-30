@@ -23,7 +23,7 @@ golang 实现透明代理。没啥技术难度，我这么菜鸡的人都能写�
 然后完善一下基本功能编译。因为时间问题没加上入库mangodb。
 流量是转发过去了，但是因为法律的问题，我们不能都扫描，不然会吃枪子，这时候就需要白名单机制，这对挖src有好处，不必担心法律问题，
 ## 0x02 FunkProxy 使用方法
-FunkProxy 下载地址：[https://github.com/hackxx/FunkProxy/releases](https://github.com/hackxx/FunkProxy/releases)
+FunkProxy 下载地址：[https://github.com/hackxx/FunkProxy/releases](https://github.com/hackxx/FunkProxy/releases/tag/2.0.1)
 **_有问题和建议请提issues，觉得好请star~_**
 ```shell script
 Usage: FunkProxy [options]
@@ -54,6 +54,8 @@ Usage: FunkProxy [options]
 4、通过返回头过滤需要转发的数据包，提高效率。
 用法：
 `./funkproxy_linux_amd64 -ca-cert ca/rootCA.crt -ca-key ca/rootCA.key -http 10080 -https 10443 -TowProxy http://xrayip:xrayport -flist .baidu.com|.qq.com`
+
+**推荐方法：openwrt 路由不运行FunkProxy 通过iptables转发**
 
 ## 0x03 实践方案
 ### 一、openwrt 路由器
@@ -135,6 +137,33 @@ iptables -A PREROUTING -t nat -s 需要转发的ip -i eth0 -p tcp --destination-
 因为是手动指定的网关，我们也可以修改DHCP服务器吧网关变成我们目标ip。
 具体自己设置。
 
+
+### 三、openwrt 路由不运行FunkProxy 通过iptables转发
+因为路由器的闪存比较小，上传不了FunkYou主程序咋办？
+我们可以利用iptables 吧端口转发到某个ip的端口上。
+首先利用内网必须有台机器：
+
+```shell script
+./FunkProxy_linux_amd64  -ca-cert ca/rootCA.crt -ca-key ca/rootCA.key -http 10080 -https 10443 -TowProxy http://127.0.0.1:7777
+```
+![-w1073](http://mweb.03sec.com/15935076924264.jpg)
+
+```shell script
+./xray_linux_amd64 webscan --listen 127.0.0.1:7777 --html-output ali111.html
+```
+
+![-w929](http://mweb.03sec.com/15935076824739.jpg)
+
+登陆到你的路由器执行ip转发
+
+```shell script
+iptables -A PREROUTING -t nat -s 被转发目标 -i br-lan -p tcp --destination-port 80 -j DNAT --to-destination 你的内网服务器ip:10080
+iptables -A PREROUTING -t nat -s 被转发目标 -i br-lan -p tcp --destination-port 443 -j DNAT --to-destination 你的内网服务器ip:10443
+```
+![-w1117](http://mweb.03sec.com/15935082015537.jpg)
+然后你的代理就是收到啦。
+![-w851](http://mweb.03sec.com/15935082237383.jpg)
+xray正常工作。
 
 ## 0x04 结尾
   还有很多功能点会逐一完善，比如分布式转发到多个代理扫描，等等功能，但是由于时间的原因只能将就的去弄。程序有什么问题可以直接提交 issues，觉得好请star。友情提示，不要全流量做转发，因为可能涉及到法律问题。还有xray尽量配置一个动态代理会比较好。
